@@ -33,3 +33,7 @@ python3 app.py
 ```
 
 
+## Screenshots
+![Screenshot1](E257A92B-91A1-48C5-A8F1-763C9E393D69.png)
+
+![Screenshot2](5FA2FD86-530F-4BA4-9B2C-82DF5ADC924B.png)
