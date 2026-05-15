@@ -1,39 +1,143 @@
-# Resume Compatibility Checker
+# Resume Scorer
 
 ## Overview
 
-This project creates a **resume compatibility checker** to check the alignment of a resume based on job descriptions. 
+Resume Scorer is a resume matching platform that analyzes resume-to-job compatibility using transformer-based semantic similarity, skill extraction, and section-aware scoring.
 
-The program is written in **Python** and frontend was build using **React**.
+The system combines NLP techniques, embedding-based semantic analysis, and explainable recommendations to evaluate how well a candidate aligns with a target role.
 
------
+This project utilizes the following tech stacks:
 
-## Running the Program
+* **Python**
+* **Flask**
+* **Sentence-Transformers**
+* **React**
+* **NumPy**
+* **pdfplumber**
 
-To compile and run the program, open two instances of terminal (one for frontend and one for backend).
+---
 
-Open the frontend directory and follow the following instructions:
-- Install all required packages using:
+## Features
+
+* Semantic resume-to-job matching using transformer embeddings
+* Section-aware scoring for:
+  * Skills
+  * Experience
+  * Projects
+  * Education
+* Skill extraction and normalization
+* Explainable compatibility recommendations
+* PDF resume parsing
+* RESTful Flask APIs
+* React frontend for interactive analysis
+
+---
+
+## Tech Stack
+
+### Backend
+
+* Python
+* Flask
+* Sentence-Transformers
+* NumPy
+* pdfplumber
+
+### Frontend
+
+* React
+* JavaScript
+* Vite
+
+---
+
+## Project Architecture
+
+```text
+Frontend (React)
+        ↓
+Flask REST API
+        ↓
+Resume Processing Pipeline
+        ↓
+Embedding + Skill Matching
+        ↓
+Section-Aware Compatibility Scoring
+        ↓
+Explainable Recommendations
 ```
+
+---
+
+## Running the Project
+
+Open two terminal instances:
+
+* one for the frontend
+* one for the backend
+
+---
+
+## Frontend Setup
+
+Navigate to the frontend directory:
+
+```bash
+cd frontend
+```
+
+Install dependencies:
+
+```bash
 npm install
 ```
-- Run the frontend:
-```
+
+Run development server:
+
+```bash
 npm run dev
 ```
 
-Now, open the backend:
-- Create a virtual environment to install packages and then run:
-```
-pip3 install -r requirements.txt
-```
-- Then, run the backend file:
-```
-python3 app.py
+---
+
+## Backend Setup
+
+Navigate to the backend directory:
+
+```bash
+cd backend
 ```
 
+Create and activate a virtual environment:
 
-## Screenshots
-![Screenshot1](E257A92B-91A1-48C5-A8F1-763C9E393D69.png)
+### macOS / Linux
 
-![Screenshot2](5FA2FD86-530F-4BA4-9B2C-82DF5ADC924B.png)
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### Windows
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run backend server:
+
+```bash
+python app.py
+```
+
+---
+
+## License
+
+This project is licensed under the MIT License.

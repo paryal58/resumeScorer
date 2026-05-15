@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Upload, FileText, Briefcase, CheckCircle, XCircle, Loader2, } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Upload, FileText, Briefcase, CheckCircle, XCircle, Loader2, AlertCircle, ArrowDown } from 'lucide-react';
 import './App.css';
 
 export default function ResumeMatcherApp() {
@@ -8,6 +8,7 @@ export default function ResumeMatcherApp() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const resultsRef = useRef(null);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -43,12 +44,16 @@ export default function ResumeMatcherApp() {
 
       if (data.success) {
         setResult(data.data);
+        // Scroll to results after a short delay to ensure render
+        setTimeout(() => {
+          resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
       } else {
-        setError('Resume processing failed, please try again later.');
+        setError(data.error || 'Resume processing failed, please try again later.');
       }
     } catch (err) {
       setError(
-        'Couldn\'t reach backend. Please try again later.'
+        'Couldn\'t reach backend. Make sure the Flask server is running at http://localhost:8000'
       );
     } finally {
       setLoading(false);
@@ -67,21 +72,29 @@ export default function ResumeMatcherApp() {
     return 'score-bg-red';
   };
 
+  const getScoreInterpretation = (score) => {
+    if (score >= 80) return '🎯 Excellent Fit';
+    if (score >= 70) return '✅ Good Fit';
+    if (score >= 50) return '⚠️ Moderate Fit';
+    return '❌ Poor Fit';
+  };
+
   return (
     <div className="app">
       <div className="container">
         <header className="header">
-          <h1>Resume Alignment Checker</h1>
-          <p>
-            Upload your resume and paste a job description to see how well they
-            match
-          </p>
+          <div className="header-content">
+            <h1>⚡ Resume Scorer</h1>
+            <p>
+              Upload your resume and paste a job description to see how well they align
+            </p>
+          </div>
         </header>
 
-        <div className="card">
+        <div className="card input-card">
           <div className="form-group">
             <label className="label">
-              <FileText size={16} />
+              <FileText size={18} />
               Upload Resume (PDF)
             </label>
 
@@ -96,7 +109,11 @@ export default function ResumeMatcherApp() {
               <label htmlFor="resume-upload" className="upload-label">
                 <Upload size={48} />
                 <span>
-                  {resumeFile ? resumeFile.name : 'Click to upload PDF'}
+                  {resumeFile ? (
+                    <><strong>{resumeFile.name}</strong> ✓</>
+                  ) : (
+                    'Click to upload PDF'
+                  )}
                 </span>
               </label>
             </div>
@@ -104,82 +121,124 @@ export default function ResumeMatcherApp() {
 
           <div className="form-group">
             <label className="label">
-              <Briefcase size={16} />
+              <Briefcase size={18} />
               Job Description
             </label>
             <textarea
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
               placeholder="Paste the job description here..."
+              className="textarea"
             />
           </div>
 
-          {error && <div className="error-box">{error}</div>}
+          {error && (
+            <div className="error-box">
+              <AlertCircle size={18} />
+              <span>{error}</span>
+            </div>
+          )}
 
           <button
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || !resumeFile || !jobDescription.trim()}
             className="primary-button"
           >
             {loading ? (
               <>
-                <Loader2 className="spin" size={18} />
-                Analyzing...
+                <Loader2 className="spin" size={20} />
+                Analyzing Resume...
               </>
             ) : (
-              'Match Resume'
+              <>
+                <CheckCircle size={20} />
+                Match Resume
+              </>
             )}
           </button>
+
+          {loading && (
+            <div className="loading-info">
+              <p>Processing your resume and analyzing compatibility...</p>
+              <p className="text-sm">This may take 2-3 seconds</p>
+            </div>
+          )}
         </div>
 
         {result && (
-          <div className="card results">
-            <h2>Compatibility Results</h2>
-
-            <div className={`score-circle ${getScoreBg(result.overall_score)}`}>
-              <span className={getScoreColor(result.overall_score)}>
-                {result.overall_score}%
-              </span>
+          <div className="card results-card" ref={resultsRef}>
+            <div className="results-header">
+              <h2>📊 Compatibility Analysis</h2>
+              <p className="interpretation">{getScoreInterpretation(result.overall_score)}</p>
             </div>
 
+            {/* Overall Score Circle */}
+            <div className="score-container">
+              <div className={`score-circle ${getScoreBg(result.overall_score)}`}>
+                <span className={getScoreColor(result.overall_score)}>
+                  {result.overall_score}%
+                </span>
+              </div>
+              <p className="score-label">Overall Compatibility</p>
+            </div>
+
+            {/* Main Metrics Grid */}
             <div className="grid">
               <div className="stat">
-                <h3>Skill Match</h3>
-                <p className={getScoreColor(result.breakdown.skill_match)}>
-                  {result.breakdown.skill_match}%
+                <h3>Semantic Similarity</h3>
+                <p className={getScoreColor(result.semantic_similarity)}>
+                  {result.semantic_similarity}%
                 </p>
+                <small>Content alignment</small>
               </div>
 
               <div className="stat">
-                <h3>Semantic Similarity</h3>
-                <p
-                  className={getScoreColor(
-                    result.breakdown.semantic_similarity
-                  )}
-                >
-                  {result.breakdown.semantic_similarity}%
+                <h3>Skill Match</h3>
+                <p className={getScoreColor(result.skill_match_score)}>
+                  {result.skill_match_score}%
                 </p>
+                <small>Required skills</small>
               </div>
             </div>
 
+            {/* Section Scores */}
+            <div className="section-scores">
+              <h3>📍 Section Breakdown</h3>
+              <div className="section-grid">
+                {Object.entries(result.section_scores).map(([section, score]) => (
+                  <div key={section} className={`section-stat ${getScoreColor(score)}`}>
+                    <p className="section-name">
+                      {section.charAt(0).toUpperCase() + section.slice(1)}
+                    </p>
+                    <p className="section-score">{score}%</p>
+                    <div className="progress-bar">
+                      <div className="progress-fill" style={{ width: `${score}%` }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Experience */}
             {result.experience_years > 0 && (
               <div className="experience">
-                <h3>Experience</h3>
-                <p>{result.experience_years} years detected</p>
+                <h3>💼 Experience Detected</h3>
+                <p className="exp-years">{result.experience_years} years</p>
               </div>
             )}
 
+            {/* Skills Section */}
             <div className="skills">
               {result.skills.matched.length > 0 && (
-                <div>
+                <div className="skill-group">
                   <h3>
-                    <CheckCircle size={18} className="icon-green" />
-                    Matched Skills
+                    <CheckCircle size={20} className="icon-green" />
+                    Matched Skills <span className="count">{result.skills.matched.length}</span>
                   </h3>
                   <div className="tags">
                     {result.skills.matched.map((skill, i) => (
                       <span key={i} className="tag green">
-                        {skill}
+                        ✓ {skill}
                       </span>
                     ))}
                   </div>
@@ -187,20 +246,53 @@ export default function ResumeMatcherApp() {
               )}
 
               {result.skills.missing.length > 0 && (
-                <div>
+                <div className="skill-group">
                   <h3>
-                    <XCircle size={18} className="icon-red" />
-                    Missing Skills
+                    <XCircle size={20} className="icon-red" />
+                    Skills to Develop <span className="count">{result.skills.missing.length}</span>
                   </h3>
                   <div className="tags">
                     {result.skills.missing.map((skill, i) => (
                       <span key={i} className="tag red">
-                        {skill}
+                        ✕ {skill}
                       </span>
                     ))}
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Recommendations */}
+            {result.recommendations && result.recommendations.length > 0 && (
+              <div className="recommendations">
+                <h3>💡 Recommendations</h3>
+                <ul className="rec-list">
+                  {result.recommendations.map((rec, i) => (
+                    <li key={i} className="rec-item">{rec}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="action-buttons">
+              <button
+                onClick={() => {
+                  setResult(null);
+                  setResumeFile(null);
+                  setJobDescription('');
+                  setError(null);
+                }}
+                className="secondary-button"
+              >
+                Try Another Resume
+              </button>
+              <button
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="secondary-button"
+              >
+                Back to Top
+              </button>
             </div>
           </div>
         )}
