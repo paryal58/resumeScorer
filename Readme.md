@@ -69,6 +69,12 @@ Explainable Recommendations
 
 ---
 
+## Demo
+
+![Demo](AA61E85A-372D-4650-9D32-887835719CCD_1_102_o-1.jpeg)
+
+---
+
 ## Running the Project
 
 Open two terminal instances:
