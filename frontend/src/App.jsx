@@ -6,6 +6,7 @@ export default function ResumeMatcherApp() {
   const [resumeFile, setResumeFile] = useState(null);
   const [jobDescription, setJobDescription] = useState('');
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const resultsRef = useRef(null);
@@ -25,6 +26,9 @@ export default function ResumeMatcherApp() {
       setError('Please provide both resume and job description.');
       return;
     }
+
+    // mark as submitted so the upload form can be hidden while processing
+    setSubmitted(true);
 
     setLoading(true);
     setError(null);
@@ -50,11 +54,13 @@ export default function ResumeMatcherApp() {
         }, 100);
       } else {
         setError(data.error || 'Resume processing failed, please try again later.');
+        setSubmitted(false);
       }
     } catch (err) {
       setError(
         'Couldn\'t reach backend. Make sure the Flask server is running at http://localhost:8000'
       );
+      setSubmitted(false);
     } finally {
       setLoading(false);
     }
@@ -83,16 +89,17 @@ export default function ResumeMatcherApp() {
     <div className="app">
       <div className="container">
         <header className="header">
-          <div className="header-content">
-            <h1>⚡ Resume Scorer</h1>
-            <p>
-              Upload your resume and paste a job description to see how well they align
-            </p>
-          </div>
+            <div className="header-content">
+              <h1>Resume Scorer</h1>
+              <p>
+                Upload your resume and paste a job description to see how well they align
+              </p>
+            </div>
         </header>
 
-        <div className="card input-card">
-          <div className="form-group">
+          {!submitted && (
+            <div className="card input-card">
+              <div className="form-group">
             <label className="label">
               <FileText size={18} />
               Upload Resume (PDF)
@@ -117,9 +124,9 @@ export default function ResumeMatcherApp() {
                 </span>
               </label>
             </div>
-          </div>
+              </div>
 
-          <div className="form-group">
+              <div className="form-group">
             <label className="label">
               <Briefcase size={18} />
               Job Description
@@ -157,18 +164,19 @@ export default function ResumeMatcherApp() {
             )}
           </button>
 
-          {loading && (
-            <div className="loading-info">
-              <p>Processing your resume and analyzing compatibility...</p>
-              <p className="text-sm">This may take 2-3 seconds</p>
+              {loading && (
+                <div className="loading-info">
+                  <p>Processing your resume and analyzing compatibility...</p>
+                  <p className="text-sm">This may take 2-3 seconds</p>
+                </div>
+              )}
             </div>
           )}
-        </div>
 
         {result && (
           <div className="card results-card" ref={resultsRef}>
             <div className="results-header">
-              <h2>📊 Compatibility Analysis</h2>
+              <h2>Compatibility Analysis</h2>
               <p className="interpretation">{getScoreInterpretation(result.overall_score)}</p>
             </div>
 
@@ -222,7 +230,7 @@ export default function ResumeMatcherApp() {
             {/* Experience */}
             {result.experience_years > 0 && (
               <div className="experience">
-                <h3>💼 Experience Detected</h3>
+                <h3>Experience</h3>
                 <p className="exp-years">{result.experience_years} years</p>
               </div>
             )}
@@ -282,6 +290,7 @@ export default function ResumeMatcherApp() {
                   setResumeFile(null);
                   setJobDescription('');
                   setError(null);
+                  setSubmitted(false);
                 }}
                 className="secondary-button"
               >

@@ -230,11 +230,8 @@ def model_info():
             "years of experience extraction",
             "weighted multi-factor analysis"
         ],
-        "scoring_weights": {
-            "semantic_similarity": 0.35,
-            "skill_match": 0.35,
-            "section_alignment": 0.30
-        }
+        "scoring_weights": matcher.final_weights if matcher else None,
+        "section_weights": matcher.section_weights if matcher else None
     }), 200
 
 

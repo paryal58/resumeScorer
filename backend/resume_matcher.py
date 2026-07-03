@@ -34,7 +34,6 @@ class ResumeJobMatcher:
             'go': 'go',
             'golang': 'go',
             'rs': 'rust',
-            'cs': 'c#',
             
             # Frontend Frameworks
             'react.js': 'react',
@@ -267,10 +266,17 @@ class ResumeJobMatcher:
 
         # Section weights for final scoring
         self.section_weights = {
-            'skills': 0.20,
-            'experience': 0.35,
+            'skills': 0.10,
+            'experience': 0.45,
             'projects': 0.25,
             'education': 0.20
+        }
+
+        # Top-level weights for the final overall score
+        self.final_weights = {
+            'semantic_similarity': 0.30,
+            'skill_match': 0.40,
+            'section_alignment': 0.30
         }
 
     # Extract text from pdf
@@ -300,28 +306,37 @@ class ResumeJobMatcher:
         # Remove special characters but keep + and # for C++, C#
         text = re.sub(r'[^\w\s\+\#\.]', ' ', text)
 
-        # Apply skill normalization
-        for alias, standard in self.skill_aliases.items():
-            text = text.replace(alias, standard)
+        # Apply skill normalization using word-boundary matching
+        for alias in sorted(self.skill_aliases, key=len, reverse=True):
+            standard = self.skill_aliases[alias]
+            pattern = r'(?<!\w)' + re.escape(alias) + r'(?!\w)'
+            text = re.sub(pattern, standard, text)
 
         return text.strip()
 
-    # Extract logical resume sections using regex patterns
+    # Extract logical resume sections by detecting heading lines (a line
+    # consisting only of the section name, optionally with a trailing colon)
+    # rather than matching the keyword anywhere in the text
     def extract_sections(self, text: str) -> Dict[str, str]:
-        normalized = text.lower()
-
-        section_patterns = {
-            'skills': r'(skills|technical\s+skills|competencies)(.*?)(experience|work|projects|education|$)',
-            'experience': r'(experience|work\s+experience|employment)(.*?)(projects|education|skills|$)',
-            'projects': r'(projects|personal\s+projects|portfolio)(.*?)(education|experience|skills|$)',
-            'education': r'(education|academic)(.*?)(experience|projects|skills|$)'
+        heading_patterns = {
+            'skills': r'^\s*(technical\s+skills|skills|competencies)\s*:?\s*$',
+            'experience': r'^\s*(experience|work\s+experience|employment)\s*:?\s*$',
+            'projects': r'^\s*(projects|personal\s+projects|portfolio)\s*:?\s*$',
+            'education': r'^\s*(education|academic)\s*:?\s*$',
         }
 
-        sections = {}
+        lines = text.split('\n')
+        headings = []  # list of (line_index, section_name), in document order
+        for i, line in enumerate(lines):
+            for name, pattern in heading_patterns.items():
+                if re.match(pattern, line, re.IGNORECASE):
+                    headings.append((i, name))
+                    break
 
-        for section_name, pattern in section_patterns.items():
-            match = re.search(pattern, normalized, re.DOTALL | re.IGNORECASE)
-            sections[section_name] = match.group(2) if match else ""
+        sections = {name: "" for name in heading_patterns}
+        for idx, (line_no, name) in enumerate(headings):
+            end_line = headings[idx + 1][0] if idx + 1 < len(headings) else len(lines)
+            sections[name] = '\n'.join(lines[line_no + 1:end_line])
 
         return sections
 
@@ -331,8 +346,8 @@ class ResumeJobMatcher:
         found_skills = []
 
         for skill in self.common_skills:
-            # Use word boundaries for accurate matching
-            if re.search(r'\b' + re.escape(skill) + r'\b', normalized_text):
+            pattern = r'(?<!\w)' + re.escape(skill) + r'(?!\w)'
+            if re.search(pattern, normalized_text):
                 found_skills.append(skill)
 
         return sorted(list(set(found_skills)))
@@ -382,14 +397,14 @@ class ResumeJobMatcher:
         return float(similarity)
 
 
-    # Calculate skill overlap using Jaccard similarity
+    # Calculate skill overlap between a resume and a job description
     def calculate_skill_match(
         self,
         resume_skills: List[str],
         job_skills: List[str]
-    ) -> Tuple[float, List[str], List[str]]:
+    ) -> Tuple[float, float, List[str], List[str]]:
         if not job_skills:
-            return 1.0, resume_skills, []
+            return 1.0, 1.0, resume_skills, []
 
         resume_set = set(resume_skills)
         job_set = set(job_skills)
@@ -397,10 +412,13 @@ class ResumeJobMatcher:
         matched = list(resume_set.intersection(job_set))
         missing = list(job_set.difference(resume_set))
 
-        # Jaccard similarity
-        score = len(matched) / len(job_set) if job_set else 1.0
+        # Recall: of the skills the job wants, what fraction does the resume have?
+        recall = len(matched) / len(job_set) if job_set else 1.0
 
-        return score, sorted(matched), sorted(missing)
+        # Precision: of the skills the resume lists, what fraction are job-relevant?
+        precision = len(matched) / len(resume_set) if resume_set else 0.0
+
+        return recall, precision, sorted(matched), sorted(missing)
 
 
     # Compare each resume section independently against job description
@@ -494,8 +512,8 @@ class ResumeJobMatcher:
         resume_skills = self.extract_skills(resume_normalized)
         job_skills = self.extract_skills(job_normalized)
 
-        # Calculate skill overlap (Jaccard similarity)
-        skill_score, matched_skills, missing_skills = self.calculate_skill_match(
+        # Calculate skill overlap (recall + precision)
+        skill_recall, skill_precision, matched_skills, missing_skills = self.calculate_skill_match(
             resume_skills,
             job_skills
         )
@@ -519,7 +537,12 @@ class ResumeJobMatcher:
             weighted_section_score += (score / 100) * weight
 
         # Final weighted score (Semantic Alignment, Skill Match, Section Alignment)
-        final_score = 0.35 * semantic_score + 0.35 * skill_score + 0.30 * weighted_section_score
+        w = self.final_weights
+        final_score = (
+            w['semantic_similarity'] * semantic_score
+            + w['skill_match'] * skill_recall
+            + w['section_alignment'] * weighted_section_score
+        )
 
         final_score_percent = round(final_score * 100, 2)
 
@@ -537,7 +560,8 @@ class ResumeJobMatcher:
         return {
             'overall_score': final_score_percent,
             'semantic_similarity': round(semantic_score * 100, 2),
-            'skill_match_score': round(skill_score * 100, 2),
+            'skill_recall_score': round(skill_recall * 100, 2),
+            'skill_precision_score': round(skill_precision * 100, 2),
             'section_scores': section_scores,
             'experience_years': years_experience,
             'skills': {
@@ -598,7 +622,8 @@ if __name__ == '__main__':
     print(f"\nOverall Score: {result['overall_score']}%")
     print(f"\nBreakdown:")
     print(f"  - Semantic Similarity: {result['semantic_similarity']}%")
-    print(f"  - Skill Match: {result['skill_match_score']}%")
+    print(f"  - Skill Recall: {result['skill_recall_score']}%")
+    print(f"  - Skill Precision: {result['skill_precision_score']}%")
     print(f"\nSection Scores:")
     for section, score in result['section_scores'].items():
         print(f"  - {section.capitalize()}: {score}%")
