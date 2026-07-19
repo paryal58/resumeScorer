@@ -10,6 +10,10 @@ import tempfile
 import os
 import logging
 from datetime import datetime
+import subprocess
+import atexit
+import os
+import sys
 
 from resume_matcher import ResumeJobMatcher
 
@@ -25,6 +29,42 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+def start_frontend():
+    frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend")
+    node_modules = os.path.join(frontend_dir, "node_modules")
+
+    if not os.path.exists(node_modules):
+        print("\nfrontend/node_modules not found — running npm install\n")
+        install_result = subprocess.run(
+            ["npm", "install"],
+            cwd=frontend_dir,
+            shell=(os.name == "nt"),
+        )
+        if install_result.returncode != 0:
+            print("\nnpm install failed. Fix the error above and restart.\n")
+            return None
+
+    process = subprocess.Popen(
+        ["npm", "run", "dev"],
+        cwd=frontend_dir,
+        shell=(os.name == "nt"),
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+    )
+    return process
+
+frontend_process = start_frontend()
+
+def cleanup():
+    print("\nShutting down frontend dev server...")
+    frontend_process.terminate()
+    try:
+        frontend_process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        frontend_process.kill()
+
+atexit.register(cleanup)
 
 # Initialize matcher
 try:

@@ -77,37 +77,6 @@ Explainable Recommendations
 
 ## Running the Project
 
-Open two terminal instances:
-
-* one for the frontend
-* one for the backend
-
----
-
-## Frontend Setup
-
-Navigate to the frontend directory:
-
-```bash
-cd frontend
-```
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Run development server:
-
-```bash
-npm run dev
-```
-
----
-
-## Backend Setup
-
 Navigate to the backend directory:
 
 ```bash
@@ -141,6 +110,8 @@ Run backend server:
 ```bash
 python app.py
 ```
+
+**Frontend is setup such that it runs alongside the backend**
 
 ---
 
